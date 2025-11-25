@@ -33,8 +33,8 @@ _（註：此為 AI 生成之示意圖，實際介面以程式為準）_
 
 1. **使用 Git (推薦)**：
    ```bash
-   git clone https://github.com/您的帳號/專案名稱.git
-   cd 專案名稱
+   git clone https://github.com/Mr-Guo-2025/voice-chat-app.git
+   cd voice-chat-app
    ```
 2. **下載 ZIP 檔**：
    - 點擊 GitHub 頁面上的 **Code** 按鈕 -> **Download ZIP**。
