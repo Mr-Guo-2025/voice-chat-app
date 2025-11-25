@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>秘密聊天室</title>
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0d6efd" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f0f2f5;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+      }
+
+      /* === 登入畫面 === */
+      #login-view {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+      }
+
+      /* === 聊天畫面 === */
+      #chat-view {
+        width: 100%;
+        height: 100%;
+        max-width: 600px; /* 手機版寬度限制 */
+        background: #fff;
+        display: none; /* 預設隱藏 */
+        flex-direction: column;
+        position: relative;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+
+      /* 訊息容器 */
+      #msg-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+        background: #eef1f5;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* 訊息氣泡 */
+      .msg-row {
+        display: flex;
+        flex-direction: column;
+        max-width: 75%;
+        position: relative;
+      }
+
+      .msg-row.me {
+        align-self: flex-end;
+        align-items: flex-end;
+      }
+
+      .msg-row.other {
+        align-self: flex-start;
+        align-items: flex-start;
+      }
+
+      .msg-name {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 2px;
+        margin-left: 5px;
+      }
+
+      .bubble-wrapper {
+        display: flex;
+        align-items: flex-end; /* 讓時間顯示在氣泡底部 */
+        gap: 5px;
+      }
+
+      .msg-row.me .bubble-wrapper {
+        flex-direction: row-reverse; /* 自己的訊息，時間在左邊 */
+      }
+
+      .bubble {
+        padding: 10px 14px;
+        border-radius: 18px;
+        font-size: 15px;
+        line-height: 1.4;
+        word-wrap: break-word;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+
+      .msg-row.me .bubble {
+        background-color: #0084ff;
+        color: white;
+        border-bottom-right-radius: 4px;
+      }
+
+      .msg-row.other .bubble {
+        background-color: #fff;
+        color: #050505;
+        border-bottom-left-radius: 4px;
+      }
+
+      /* 圖片與影片樣式 */
+      .msg-img,
+      .msg-video {
+        max-width: 200px;
+        border-radius: 12px;
+        cursor: pointer;
+      }
+      .sticker-img {
+        width: 120px;
+      }
+
+      /* 時間與已讀 */
+      .msg-time {
+        font-size: 10px;
+        color: #aaa;
+        min-width: 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        margin-bottom: 2px;
+      }
+      .read-status {
+        font-size: 10px;
+        color: #999;
+        margin-bottom: 2px;
+        text-align: right;
+      }
+
+      /* 日期分隔線 */
+      .date-divider {
+        text-align: center;
+        margin: 15px 0;
+        position: relative;
+      }
+      .date-divider span {
+        background: #e1e4e8;
+        color: #666;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+      }
+
+      /* 系統訊息 */
+      .system-notice {
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+        margin: 10px 0;
+      }
+
+      /* 底部輸入區 */
+      .input-area {
+        background: #fff;
+        padding: 8px 10px; /* 上下縮小到 8px，左右 10px */
+        display: flex;
+        gap: 8px; /* 元件之間的距離 */
+        align-items: center; /* 垂直置中 */
+        border-top: 1px solid #eee; /* 加一條淡淡的分隔線 */
+        flex-shrink: 0; /* 防止被壓縮 */
+      }
+
+      /* 輸入框本體 */
+      #msg-input {
+        height: 40px; /* 強制設定高度，不讓它亂長 */
+        font-size: 15px; /* 字體大小適中 */
+        padding: 0 15px; /* 左右留點呼吸空間 */
+      }
+
+      /* 按鈕統一圓形樣式 */
+      .btn-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0; /* 防止按鈕變形 */
+        border: none;
+      }
+
+      /* 傳送按鈕顏色 */
+      .btn-send {
+        background-color: #0084ff; /* Messenger 藍 */
+        color: white;
+      }
+      .btn-send:hover {
+        background-color: #0073e6;
+      }
+      .btn-send:active {
+        transform: scale(0.95);
+      } /* 點擊縮放效果 */
+
+      /* === 視訊通話介面 (懸浮視窗) === */
+      #call-overlay {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 300px;
+        height: auto;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        /* 預設隱藏 */
+        /* display: none; 由 d-none 控制 */
+      }
+
+      /* 手機版：縮小通話視窗 */
+      @media (max-width: 768px) {
+        #call-overlay {
+          top: 10px;
+          right: 10px;
+          width: 160px;
+          padding: 8px;
+        }
+
+        .video-container {
+          margin-bottom: 6px;
+        }
+
+        #call-status {
+          font-size: 0.7rem;
+          margin-bottom: 6px !important;
+        }
+
+        .call-controls {
+          flex-direction: column;
+          gap: 5px;
+          width: 100%;
+        }
+
+        .call-controls button {
+          font-size: 0.65rem;
+          padding: 5px 8px !important;
+          width: 100%;
+          margin: 0 !important;
+        }
+
+        #local-video {
+          width: 45px;
+          height: 34px;
+        }
+
+        .audio-only-placeholder {
+          font-size: 0.9rem;
+        }
+      }
+
+      .video-container {
+        position: relative;
+        width: 100%;
+        /* max-width: 600px; */
+        aspect-ratio: 4/3; /* 改為 4:3 比較適合小視窗 */
+        background: #000;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      #remote-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      #local-video {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        width: 80px;
+        height: 60px;
+        object-fit: cover;
+        border: 2px solid white;
+        border-radius: 6px;
+        z-index: 2;
+      }
+
+      /* 語音通話模式的佔位符 */
+      .audio-only-placeholder {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 20px;
+        background: #333;
+        color: #fff;
+        font-size: 1rem;
+        z-index: 1;
+        text-align: center;
+      }
+
+      .call-controls {
+        display: flex;
+        gap: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- === 登入畫面 === -->
+    <div id="login-view">
+      <div
+        class="card p-4 border-0 shadow-lg"
+        style="width: 300px; border-radius: 20px"
+      >
+        <h3 class="text-center mb-4 fw-bold text-primary">👋 歡迎回來</h3>
+        <input
+          type="text"
+          id="username"
+          class="form-control mb-3 p-3"
+          placeholder="帳號 (admin/friend)"
+        />
+        <input
+          type="password"
+          id="password"
+          class="form-control mb-4 p-3"
+          placeholder="密碼"
+        />
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="remember-me" />
+          <label class="form-check-label text-secondary" for="remember-me">
+            記住我 (自動登入)
+          </label>
+        </div>
+        <button
+          onclick="doLogin()"
+          class="btn btn-primary w-100 p-3 fw-bold rounded-pill"
+        >
+          登入聊天
+        </button>
+        <div class="mt-3 text-center">
+          <button
+            onclick="testCamera()"
+            class="btn btn-sm btn-outline-secondary rounded-pill"
+            style="font-size: 12px"
+          >
+            🎥 測試鏡頭與麥克風
+          </button>
+          <button
+            id="install-btn"
+            onclick="installApp()"
+            class="btn btn-sm btn-success rounded-pill ms-2"
+            style="font-size: 12px"
+          >
+            📲 安裝 App
+          </button>
+        </div>
+        <p id="error-msg" class="text-danger text-center mt-3 small"></p>
+      </div>
+    </div>
+
+    <!-- === 聊天畫面 === -->
+    <div id="chat-view">
+      <!-- 頂部導覽列 -->
+      <div
+        class="bg-white p-3 shadow-sm d-flex justify-content-between align-items-center"
+        style="height: 60px"
+      >
+        <!-- 左側：標題與人數 (手機版垂直排列) -->
+        <div class="d-flex flex-column justify-content-center">
+          <div class="fw-bold fs-6">💬 秘密聊天室</div>
+          <div id="online-count" class="text-muted" style="font-size: 11px">
+            (連線中...)
+          </div>
+        </div>
+
+        <!-- 右側：通知按鈕、使用者與登出 (水平排列) -->
+        <div class="d-flex align-items-center">
+          <button
+            id="btn-notify"
+            class="btn btn-sm btn-outline-light me-2 rounded-circle"
+            style="
+              width: 30px;
+              height: 30px;
+              padding: 0;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+            onclick="requestNotificationPermission()"
+          >
+            🔔
+          </button>
+          <span
+            id="user-badge"
+            class="badge bg-light text-primary me-2 rounded-pill"
+            style="font-size: 12px; padding: 5px 10px"
+          ></span>
+          <button
+            class="btn btn-sm btn-light text-primary fw-bold rounded-pill"
+            style="font-size: 12px; padding: 2px 8px"
+            onclick="doLogout()"
+          >
+            登出
+          </button>
+        </div>
+      </div>
+
+      <!-- 訊息顯示區 -->
+      <div id="msg-container"></div>
+
+      <!-- 貼圖選單 (預設隱藏) -->
+      <div id="sticker-box" class="bg-light p-2 d-none border-top">
+        <div class="d-flex gap-2 overflow-auto py-2">
+          <!-- 測試用貼圖 GIF -->
+          <img
+            src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbXN6ZnB4eXJ6eXJ6eXJ6eXJ6eXJ6eXJ6eXJ6eXJ6eXJ6eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/LpDmM2wSt6kF2/giphy.gif"
+            onclick="sendSticker(this.src)"
+            class="sticker-btn"
+            style="width: 80px; cursor: pointer; border-radius: 8px"
+          />
+          <img
+            src="https://media.giphy.com/media/User2V1rL97i/giphy.gif"
+            onclick="sendSticker(this.src)"
+            class="sticker-btn"
+            style="width: 80px; cursor: pointer; border-radius: 8px"
+          />
+          <img
+            src="https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif"
+            onclick="sendSticker(this.src)"
+            class="sticker-btn"
+            style="width: 80px; cursor: pointer; border-radius: 8px"
+          />
+          <img
+            src="https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"
+            onclick="sendSticker(this.src)"
+            class="sticker-btn"
+            style="width: 80px; cursor: pointer; border-radius: 8px"
+          />
+        </div>
+      </div>
+
+      <!-- 隱藏的檔案上傳 Input -->
+      <input
+        type="file"
+        id="file-input"
+        accept="image/*,video/*"
+        style="display: none"
+      />
+
+      <!-- 進度條 (預設隱藏) -->
+      <div id="progress-container" class="px-3 py-1 d-none bg-white border-top">
+        <div class="progress" style="height: 4px">
+          <div
+            id="progress-bar"
+            class="progress-bar bg-success"
+            role="progressbar"
+            style="width: 0%"
+          ></div>
+        </div>
+        <div
+          id="progress-text"
+          class="text-center text-muted mt-1"
+          style="font-size: 10px"
+        >
+          準備上傳...
+        </div>
+      </div>
+
+      <!-- 底部輸入區 (優化版) -->
+      <div class="input-area">
+        <!-- 上傳按鈕 -->
+        <button
+          class="btn btn-light btn-circle border"
+          onclick="triggerUpload()"
+        >
+          📷
+        </button>
+
+        <!-- 貼圖按鈕 (SVG 圖示) -->
+        <button
+          class="btn btn-light text-secondary btn-circle"
+          onclick="toggleSticker()"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+            <line x1="9" y1="9" x2="9.01" y2="9"></line>
+            <line x1="15" y1="9" x2="15.01" y2="9"></line>
+          </svg>
+        </button>
+
+        <!-- 輸入框 -->
+        <input
+          type="text"
+          id="msg-input"
+          class="form-control border-0 bg-light rounded-pill"
+          placeholder="輸入訊息..."
+        />
+
+        <!-- 傳送按鈕 (SVG 圖示) -->
+        <button onclick="sendText()" class="btn btn-send btn-circle">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="margin-left: 2px; margin-top: 2px"
+          >
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- === 語音通話介面 (懸浮視窗) === -->
+    <div id="call-overlay" class="d-none">
+      <div
+        class="video-container"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+      >
+        <div
+          class="audio-only-placeholder"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: white;
+          "
+        >
+          <div style="font-size: 4rem; margin-bottom: 20px">🎤</div>
+          <div style="font-size: 1.5rem; font-weight: bold">語音通話中</div>
+        </div>
+        <!-- 音量條 -->
+        <div
+          id="volume-meter-container"
+          style="
+            position: absolute;
+            bottom: 80px;
+            right: 10px;
+            width: 80px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            z-index: 3;
+          "
+        >
+          <div
+            id="volume-bar"
+            style="
+              width: 0%;
+              height: 100%;
+              background: #0f0;
+              border-radius: 3px;
+              transition: width 0.1s;
+            "
+          ></div>
+        </div>
+      </div>
+      <div id="call-status" class="mb-3 text-white">連線中...</div>
+      <div class="call-controls">
+        <button
+          id="hangup-btn"
+          class="btn btn-danger rounded-pill px-4"
+          onclick="endCall()"
+        >
+          ❌ 掛斷
+        </button>
+      </div>
+    </div>
+
+    <!-- 隱藏的音訊元素用於播放對方的聲音 -->
+    <audio id="remote-audio" autoplay volume="1.0"></audio>
+
+    <!-- 來電通知 Modal (簡單版) -->
+    <div
+      id="incoming-call-modal"
+      class="modal"
+      tabindex="-1"
+      style="display: none; background: rgba(0, 0, 0, 0.5)"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">📞 來電通知</h5>
+          </div>
+          <div class="modal-body">
+            <p id="caller-name">有人打給你...</p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="rejectCall()"
+            >
+              拒絕
+            </button>
+            <button
+              type="button"
+              class="btn btn-success"
+              onclick="acceptCall()"
+            >
+              接聽
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 載入 Socket.io 用戶端程式 -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io(); // 連線！
+      let myName = "";
+      let lastDate = ""; // 用來記錄上一則訊息的日期
+
+      // WebRTC 變數
+      let isCaller = false;
+      let localStream;
+      let peerConnection;
+      let candidateQueue = []; // ICE Candidate Queue
+      let currentCallPartner = null; // 記錄目前通話對象的 Socket ID
+      const rtcConfig = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      };
+
+      // Debug: 監聽連線狀態
+      socket.on("connect", () => {
+        console.log("✅ Socket 連線成功！ID:", socket.id);
+        const errorMsg = document.getElementById("error-msg");
+        if (errorMsg) errorMsg.innerText = "";
+      });
+
+      socket.on("connect_error", (err) => {
+        console.error("❌ Socket 連線失敗:", err);
+        const errorMsg = document.getElementById("error-msg");
+        if (errorMsg) errorMsg.innerText = "連線失敗 (Socket): " + err.message;
+      });
+
+      socket.on("disconnect", () => {
+        console.warn("⚠️ Socket 斷線");
+      });
+
+      // --- 登入功能 ---
+      // === 檢查是否要自動登入 ===
+      // 直接執行，不等待 onload，確保手機版也能讀到
+      try {
+        const savedAuth = localStorage.getItem("chat_auth");
+        if (savedAuth) {
+          const { username, password } = JSON.parse(savedAuth);
+          const uInput = document.getElementById("username");
+          const pInput = document.getElementById("password");
+          const rInput = document.getElementById("remember-me");
+
+          if (uInput) uInput.value = username;
+          if (pInput) pInput.value = password;
+          if (rInput) rInput.checked = true;
+        }
+      } catch (e) {
+        console.error("Auto-fill error:", e);
+      }
+
+      // 檢查通知權限並更新按鈕狀態
+      function updateNotifyBtn() {
+        const btn = document.getElementById("btn-notify");
+        if (!btn) return;
+        if (Notification.permission === "granted") {
+          btn.innerText = "🔕"; // 已開啟，顯示關閉(或只是狀態)
+          btn.title = "通知已開啟";
+          btn.classList.remove("btn-outline-light");
+          btn.classList.add("btn-light", "text-primary");
+        } else if (Notification.permission === "denied") {
+          btn.innerText = "🚫";
+          btn.title = "通知已封鎖";
+        } else {
+          btn.innerText = "🔔";
+          btn.title = "開啟通知";
+        }
+      }
+
+      // 請求通知權限
+      function requestNotificationPermission() {
+        if (!("Notification" in window)) {
+          alert("這個瀏覽器不支援通知功能 😭");
+          return;
+        }
+
+        if (Notification.permission === "granted") {
+          // 已經開啟，這裡可以做「測試通知」
+          new Notification("測試通知", { body: "通知功能正常運作中！" });
+        } else {
+          Notification.requestPermission().then((permission) => {
+            updateNotifyBtn();
+            if (permission === "granted") {
+              new Notification("通知已開啟", {
+                body: "以後有新訊息會通知你喔！",
+              });
+            }
+          });
+        }
+      }
+
+      // 發送通知
+      function trySendNotification(data) {
+        // 如果是自己發的，不通知
+        if (data.user === myName) return;
+        // 如果沒有權限，不通知
+        if (Notification.permission !== "granted") return;
+
+        // 判斷內容
+        let bodyText = data.text;
+        if (data.type === "sticker") bodyText = "傳送了一個貼圖";
+        if (data.type === "image") bodyText = "傳送了一張圖片";
+        if (data.type === "video") bodyText = "傳送了一部影片";
+
+        // 發送
+        const n = new Notification(data.user, {
+          body: bodyText,
+          icon: "/icon.png", // 假設有 icon
+          tag: "chat-msg", // 同一個 tag 會覆蓋，避免太多通知
+        });
+
+        // 點擊通知打開視窗
+        n.onclick = function () {
+          window.focus();
+          n.close();
+        };
+      }
+
+      // === 新增：初始權限請求 ===
+      async function requestInitialPermissions() {
+        try {
+          let stream;
+          try {
+            // 1. 嘗試取得 視訊 + 音訊
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: true,
+            });
+          } catch (e) {
+            if (
+              e.name === "NotFoundError" ||
+              e.name === "DevicesNotFoundError"
+            ) {
+              console.warn("找不到相機，嘗試僅獲取音訊權限...");
+              // 2. 如果沒有相機，嘗試僅音訊
+              stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+              });
+            } else {
+              throw e; // 其他錯誤 (如拒絕權限) 往外拋
+            }
+          }
+
+          // 3. 檢查麥克風是否被系統靜音
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length > 0 && audioTracks[0].muted) {
+            alert(
+              "⚠️ 警告：偵測到您的麥克風已被系統靜音！\n請務必檢查 Windows 音效設定，否則對方聽不到您的聲音。"
+            );
+          }
+
+          // 成功獲取後立即關閉，只是為了觸發授權提示
+          stream.getTracks().forEach((track) => track.stop());
+
+          // 隱藏 Modal
+          document.getElementById("permission-modal").style.display = "none";
+
+          // 檢查通知權限 (順便)
+          if (Notification.permission === "default") {
+            Notification.requestPermission();
+          }
+        } catch (err) {
+          console.error("Permission error:", err);
+          if (
+            err.name === "NotAllowedError" ||
+            err.name === "PermissionDeniedError"
+          ) {
+            alert(
+              "您拒絕了權限，通話功能將無法使用 😭\n請點擊網址列左側的「鎖頭」圖示來開啟權限。"
+            );
+          } else if (err.name === "NotFoundError") {
+            alert("找不到麥克風或相機 🚫\n請檢查您的設備連接。");
+          } else {
+            alert(`發生錯誤: ${err.name}\n${err.message}`);
+          }
+        }
+      }
+
+      // 頁面載入時檢查權限狀態
+      window.addEventListener("load", () => {
+        updateNotifyBtn();
+
+        // 檢查是否已經有權限，如果沒有，顯示 Modal
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions
+            .query({ name: "microphone" })
+            .then((permissionStatus) => {
+              if (permissionStatus.state !== "granted") {
+                document.getElementById("permission-modal").style.display =
+                  "block";
+                document
+                  .getElementById("permission-modal")
+                  .classList.add("show");
+              }
+            })
+            .catch((err) => {
+              console.log("Permission query failed", err);
+            });
+        }
+      });
+
+      function doLogin() {
+        const usernameInput = document.getElementById("username");
+        const passwordInput = document.getElementById("password");
+        const rememberMe = document.getElementById("remember-me").checked;
+        const errorMsg = document.getElementById("error-msg");
+
+        if (!usernameInput || !passwordInput) {
+          console.error("找不到輸入框元素！");
+          alert("系統錯誤：找不到輸入框");
+          return;
+        }
+
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+
+        if (!username || !password) {
+          errorMsg.innerText = "請輸入帳號和密碼";
+          return;
+        }
+
+        // Debug: 檢查 Socket 連線狀態
+        if (!socket.connected) {
+          alert(
+            "⚠️ 尚未連線到伺服器！\n請檢查網路或重新整理頁面。\nSocket ID: " +
+              socket.id
+          );
+          return;
+        }
+
+        // 儲存/清除 帳密
+        if (rememberMe) {
+          localStorage.setItem(
+            "chat_auth",
+            JSON.stringify({ username, password })
+          );
+        } else {
+          localStorage.removeItem("chat_auth");
+        }
+
+        // 嘗試登入
+        socket.emit("try_login", { username, password });
+
+        // 監聽登入結果 (只監聽一次，避免重複綁定)
+        socket.once("login_result", (data) => {
+          if (data.success) {
+            myName = data.username;
+            document.getElementById("login-view").style.display = "none";
+            document.getElementById("chat-view").style.display = "flex";
+            document.getElementById("user-badge").innerText = myName;
+
+            // 渲染歷史訊息
+            renderHistory(data.history);
+
+            // 註冊 Web Push
+            registerPush();
+          } else {
+            document.getElementById("error-msg").innerText = data.msg;
+          }
+        });
+      }
+
+      function doLogout() {
+        localStorage.removeItem("chat_auth");
+        location.reload();
+      }
+
+      function renderHistory(history) {
+        if (history && history.length > 0) {
+          history.forEach((msg) => {
+            renderMessage(msg);
+          });
+        }
+      }
+
+      function sendText() {
+        const input = document.getElementById("msg-input");
+        const txt = input.value.trim();
+        if (txt) {
+          socket.emit("send_msg", { text: txt, type: "text" });
+          input.value = "";
+        }
+      }
+
+      function sendSticker(url) {
+        socket.emit("send_msg", { text: url, type: "sticker" });
+        toggleSticker(); // 關閉選單
+      }
+
+      function toggleSticker() {
+        const box = document.getElementById("sticker-box");
+        box.classList.toggle("d-none");
+      }
+
+      // 監聽收到訊息 (這裡就是我們改寫邏輯的地方)
+      socket.on("receive_msg", (data) => {
+        renderMessage(data);
+        trySendNotification(data); // 嘗試發送通知
+      });
+
+      // 獨立出來的渲染函式
+      function renderMessage(data) {
+        const container = document.getElementById("msg-container");
+
+        // 0. 檢查日期，是否需要插入分隔線
+        // data.timestamp 格式: "2023-10-27T10:00:00.000Z"
+        if (data.timestamp) {
+          const dateObj = new Date(data.timestamp);
+          const dateStr = dateObj.toLocaleDateString("zh-TW"); // e.g. "2023/10/27"
+
+          if (dateStr !== lastDate) {
+            const divider = document.createElement("div");
+            divider.className = "date-divider";
+            divider.innerHTML = `<span>${dateStr}</span>`;
+            container.appendChild(divider);
+            lastDate = dateStr;
+          }
+        }
+
+        // 1. 如果是系統訊息，直接顯示並結束
+        if (data.type === "system") {
+          const div = document.createElement("div");
+          div.className = "system-notice";
+          div.innerText = data.text;
+          container.appendChild(div);
+          container.scrollTop = container.scrollHeight;
+          return;
+        }
+
+        // 2. 建立最外層的列
+        const msgRow = document.createElement("div");
+        const isMe = data.user === myName;
+
+        // 設定是誰發的 (決定靠左還是靠右)
+        msgRow.className = `msg-row ${isMe ? "me" : "other"}`;
+
+        // 2.5 如果是別人的訊息，且我有 ID，就標記已讀
+        if (!isMe && data.id) {
+          socket.emit("mark_read", { messageId: data.id, user: myName });
+        }
+
+        // 2.6 準備已讀 HTML (只有自己的訊息才顯示)
+        let readHtml = "";
+        if (isMe && data.readBy && data.readBy.length > 0) {
+          // 簡單判斷：只要有人讀過就顯示已讀
+          // 過濾掉自己 (理論上 server 應該處理，但前端防呆)
+          const readers = data.readBy.filter((u) => u !== myName);
+          if (readers.length > 0) {
+            readHtml = `<div class="read-status">已讀</div>`;
+          }
+        }
+
+        // 3. 準備內容 HTML
+        // 如果是對方，才顯示名字
+        const nameHtml = isMe ? "" : `<div class="msg-name">${data.user}</div>`;
+
+        // 判斷是文字還是貼圖
+        let contentHtml = "";
+        if (data.type === "sticker") {
+          contentHtml = `<img src="${data.text}" class="sticker-img">`;
+        } else if (data.type === "image") {
+          contentHtml = `<img src="${data.text}" class="msg-img" onclick="window.open('${data.text}')">`;
+        } else if (data.type === "video") {
+          contentHtml = `<video src="${data.text}" class="msg-video" controls></video>`;
+        } else {
+          contentHtml = data.text;
+        }
+
+        // 4. 組合 HTML (關鍵結構變化)
+        // 結構變成了：[名字] (對方) -> [外包裝 flex: 氣泡 + 時間]
+        // 時間區塊加入已讀狀態
+        msgRow.innerHTML = `
+                ${nameHtml}
+                <div class="bubble-wrapper">
+                    <div class="bubble" data-id="${
+                      data.id || ""
+                    }">${contentHtml}</div>
+                    <div class="msg-time">
+                        ${readHtml}
+                        <span>${data.time}</span>
+                    </div>
+                </div>
+            `;
+
+        container.appendChild(msgRow);
+        container.scrollTop = container.scrollHeight; // 自動捲到底部
+      }
+
+      // 監聽已讀更新
+      socket.on("message_read", (data) => {
+        const { messageId, readBy } = data;
+        // 找到對應的訊息氣泡
+        const bubble = document.querySelector(
+          `.bubble[data-id="${messageId}"]`
+        );
+        if (bubble) {
+          // 往上找 wrapper 再找 time 區塊
+          const wrapper = bubble.parentElement;
+          const timeDiv = wrapper.querySelector(".msg-time");
+          if (timeDiv) {
+            // 檢查是否已經有已讀標籤
+            if (!timeDiv.querySelector(".read-status")) {
+              // 插入已讀標籤到最前面
+              const readSpan = document.createElement("div");
+              readSpan.className = "read-status";
+              readSpan.innerText = "已讀";
+              timeDiv.prepend(readSpan);
+            }
+          }
+        }
+      });
+
+      // 系統訊息 (舊的監聽器，如果 server 不再送 system_msg 可以移除，這裡保留相容性)
+      socket.on("system_msg", (txt) => {
+        const container = document.getElementById("msg-container");
+        const div = document.createElement("div");
+        div.className = "system-notice";
+        div.innerText = txt;
+        container.appendChild(div);
+      });
+
+      // 監聽強制登出
+      socket.on("force_logout", () => {
+        alert("連線已斷開，請重新登入！ 🔌");
+        location.reload();
+      });
+
+      // 線上人數更新 (改為顯示名單)
+      socket.on("online_users_update", (users) => {
+        const el = document.getElementById("online-count");
+        if (el) {
+          el.innerHTML = ""; // Clear
+          const countSpan = document.createElement("span");
+          countSpan.innerText = `(${users.length}人): `;
+          el.appendChild(countSpan);
+
+          users.forEach((u) => {
+            const span = document.createElement("span");
+            span.className = "me-1";
+            // 使用 socket.id 來判斷是不是自己
+            const isMe = (u.id && u.id === socket.id) || u.name === myName;
+
+            if (isMe) {
+              span.innerText = u.name || u;
+            } else {
+              if (u.id) {
+                span.innerHTML = `<a href="#" onclick="startCall('${u.id}'); return false;" style="text-decoration: none;">${u.name} 📞</a>`;
+              } else {
+                span.innerText = u.name || u;
+              }
+            }
+            el.appendChild(span);
+            el.appendChild(document.createTextNode(" "));
+          });
+        }
+      });
+
+      // 監聽對方掛斷通話
+      socket.on("call-ended", () => {
+        log("對方已掛斷通話");
+        alert("📞 對方已掛斷通話");
+        endCall();
+      });
+
+      // === 統一的媒體獲取函式 (含 fallback & 預設關閉視訊) ===
+      // === 音訊分析 (音量條) ===
+      let audioContext;
+      let analyser;
+      let microphone;
+      let javascriptNode;
+
+      function setupAudioAnalysis(stream) {
+        try {
+          if (!audioContext) {
+            audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)();
+          }
+          if (audioContext.state === "suspended") {
+            audioContext.resume();
+          }
+
+          microphone = audioContext.createMediaStreamSource(stream);
+          analyser = audioContext.createAnalyser();
+          analyser.smoothingTimeConstant = 0.8;
+          analyser.fftSize = 1024;
+
+          javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+          microphone.connect(analyser);
+          analyser.connect(javascriptNode);
+          javascriptNode.connect(audioContext.destination);
+
+          javascriptNode.onaudioprocess = function () {
+            const array = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(array);
+            let values = 0;
+            const length = array.length;
+            for (let i = 0; i < length; i++) {
+              values += array[i];
+            }
+            const average = values / length;
+
+            // 更新 UI
+            const volumeBar = document.getElementById("volume-bar");
+            if (volumeBar) {
+              // 放大一點效果
+              let percent = Math.min(100, average * 2);
+              volumeBar.style.width = percent + "%";
+
+              // 顏色變化
+              if (percent > 50) volumeBar.style.background = "#ff0"; // 黃色
+              if (percent > 80) volumeBar.style.background = "#f00"; // 紅色
+              else volumeBar.style.background = "#0f0"; // 綠色
+            }
+          };
+        } catch (e) {
+          console.error("Audio analysis setup failed:", e);
+        }
+      }
+
+      // 解決手機瀏覽器 AudioContext 需要使用者互動才能啟動的問題
+      document.addEventListener("click", function () {
+        if (audioContext && audioContext.state === "suspended") {
+          audioContext.resume().then(() => {
+            console.log("AudioContext resumed by user gesture");
+          });
+        }
+      });
+
+      async function getLocalStream() {
+        try {
+          // 只獲取音訊（純語音通話）
+          console.log("嘗試獲取音訊...");
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          console.log("成功獲取音訊！");
+          console.log("音訊軌道:", stream.getAudioTracks().length);
+
+          stream.getAudioTracks().forEach((track) => {
+            console.log(
+              "啟用音訊軌道:",
+              track.id,
+              "enabled=",
+              track.enabled,
+              "muted=",
+              track.muted
+            );
+            track.enabled = true;
+
+            // 檢查軌道是否被靜音
+            if (track.muted) {
+              console.warn(
+                "⚠️ 警告：音訊軌道被靜音！這可能是系統或瀏覽器設定的問題。"
+              );
+              alert(
+                "⚠️ 您的麥克風似乎被靜音了！\n\n請檢查：\n1. 瀏覽器的麥克風權限\n2. 系統的麥克風設定\n3. 是否有其他應用程式正在使用麥克風"
+              );
+            }
+          });
+          return stream;
+        } catch (err) {
+          console.warn("無法取得影音，嘗試僅音訊...", err.name, err.message);
+
+          // 如果是找不到設備 (NotFoundError) 或 設備無法使用 (NotReadableError)
+          // 嘗試只抓麥克風
+          if (
+            err.name === "NotFoundError" ||
+            err.name === "DevicesNotFoundError" ||
+            err.name === "NotReadableError"
+          ) {
+            try {
+              console.log("嘗試僅獲取音訊...");
+              const stream = await navigator.mediaDevices.getUserMedia({
+                video: false,
+                audio: true,
+              });
+              console.log(
+                "成功獲取音訊！音訊軌道:",
+                stream.getAudioTracks().length
+              );
+              return stream;
+            } catch (err2) {
+              console.error("麥克風也無法獲取:", err2.name, err2.message);
+              throw err2;
+            }
+          }
+          throw err;
+        }
+      }
+
+      // 切換視訊開關
+      function toggleVideo() {
+        if (!localStream) return;
+        const videoTrack = localStream.getVideoTracks()[0];
+        const placeholder = document.getElementById("audio-only-placeholder");
+
+        if (videoTrack) {
+          videoTrack.enabled = !videoTrack.enabled;
+          const btn = document.getElementById("btn-toggle-video");
+          if (videoTrack.enabled) {
+            btn.classList.remove("btn-secondary");
+            btn.classList.add("btn-primary");
+            btn.innerText = "📹 視訊已開";
+            if (placeholder) placeholder.classList.add("d-none");
+          } else {
+            btn.classList.remove("btn-primary");
+            btn.classList.add("btn-secondary");
+            btn.innerText = "📷 開啟視訊";
+            if (placeholder) placeholder.classList.remove("d-none");
+          }
+        } else {
+          alert("找不到鏡頭，無法開啟視訊 😅");
+        }
+      }
+
+      // 1. 發起通話
+      async function startCall(socketId) {
+        log("開始呼叫: " + socketId);
+        isCaller = true;
+        currentCallPartner = socketId; // 記錄通話對象
+        document.getElementById("call-overlay").classList.remove("d-none");
+        document.getElementById("call-status").innerText = "正在呼叫...";
+
+        try {
+          // 改用封裝好的函式
+          localStream = await getLocalStream();
+          log("取得本地串流成功");
+
+          // 啟動音量監測
+          setupAudioAnalysis(localStream);
+
+          peerConnection = new RTCPeerConnection(rtcConfig);
+          log("建立 PeerConnection 成功");
+
+          // 監聽連線狀態改變
+          peerConnection.oniceconnectionstatechange = () => {
+            console.log("ICE State:", peerConnection.iceConnectionState);
+            log("ICE State: " + peerConnection.iceConnectionState);
+            if (
+              peerConnection.iceConnectionState === "connected" ||
+              peerConnection.iceConnectionState === "completed"
+            ) {
+              document.getElementById("call-status").innerText = "通話中 🟢";
+            } else if (
+              peerConnection.iceConnectionState === "disconnected" ||
+              peerConnection.iceConnectionState === "failed"
+            ) {
+              document.getElementById("call-status").innerText = "連線中斷 🔴";
+            }
+          };
+
+          peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+              log("送出 ICE Candidate");
+              socket.emit("ice-candidate", {
+                to: socketId,
+                candidate: event.candidate,
+              });
+            }
+          };
+          peerConnection.ontrack = (event) => {
+            log("收到遠端串流");
+            const remoteAudio = document.getElementById("remote-audio");
+
+            if (!remoteAudio) {
+              console.error("找不到 remote-audio 元素！");
+              alert("⚠️ 音訊播放元素載入失敗，請重新整理網頁！");
+              return;
+            }
+
+            remoteAudio.srcObject = event.streams[0];
+
+            // 確保音訊播放
+            remoteAudio.muted = false; // 強制開啟聲音
+            remoteAudio.volume = 1.0;
+            remoteAudio.play().catch((e) => {
+              log("播放失敗: " + e.message);
+              alert("瀏覽器阻擋了自動播放，請點擊畫面任意處來開啟聲音！");
+            });
+
+            // 檢查音訊軌道
+            const audioTracks = event.streams[0].getAudioTracks();
+            log(`音訊軌道數量: ${audioTracks.length}`);
+            audioTracks.forEach((track, i) => {
+              log(
+                `音訊軌 ${i}: enabled=${track.enabled}, muted=${track.muted}`
+              );
+              if (track.muted) {
+                log(`警告: 音訊軌 ${i} 初始狀態為 muted，等待 3 秒檢查...`);
+                setTimeout(() => {
+                  if (track.muted) {
+                    alert(
+                      "⚠️ 嚴重警告：您的麥克風持續被靜音！\n\n1. 請檢查麥克風是否有「實體靜音按鈕」。\n2. 請確認 Windows 設定 > 隱私權 > 麥克風存取權限是否開啟。"
+                    );
+                    document.getElementById("call-status").innerText =
+                      "⚠️ 麥克風無訊號";
+                    document.getElementById("call-status").style.color = "red";
+                  }
+                }, 3000);
+              }
+            });
+
+            // 強制更新狀態
+            document.getElementById("call-status").innerText = "通話中 🟢";
+          };
+          localStream
+            .getTracks()
+            .forEach((track) => peerConnection.addTrack(track, localStream));
+
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          log("送出 Offer");
+
+          socket.emit("call-user", {
+            userToCall: socketId,
+            signalData: offer,
+            from: myName,
+          });
+        } catch (err) {
+          console.error("無法取得鏡頭/麥克風", err);
+          log("Error: " + err.message);
+          alert(
+            `無法取得鏡頭/麥克風權限 😭\n錯誤代碼: ${err.name}\n訊息: ${err.message}`
+          );
+          endCall();
+        }
+      }
+
+      // 2. 收到來電
+      let incomingCallData = null;
+      socket.on("call-made", async (data) => {
+        log("收到來電: " + data.name);
+        incomingCallData = data;
+        document.getElementById(
+          "caller-name"
+        ).innerText = `${data.name} 打給你...`;
+        document.getElementById("incoming-call-modal").style.display = "block";
+        document.getElementById("incoming-call-modal").classList.add("show");
+      });
+
+      // 3. 接聽
+      async function acceptCall() {
+        log("接聽電話");
+        currentCallPartner = incomingCallData.socket; // 記錄通話對象
+        document.getElementById("incoming-call-modal").style.display = "none";
+        document.getElementById("incoming-call-modal").classList.remove("show");
+        document.getElementById("call-overlay").classList.remove("d-none");
+        document.getElementById("call-status").innerText = "連線中...";
+
+        try {
+          // 改用封裝好的函式
+          localStream = await getLocalStream();
+          log("取得本地串流成功");
+
+          peerConnection = new RTCPeerConnection(rtcConfig);
+          log("建立 PeerConnection 成功");
+
+          // 監聽連線狀態改變
+          peerConnection.oniceconnectionstatechange = () => {
+            console.log("ICE State:", peerConnection.iceConnectionState);
+            log("ICE State: " + peerConnection.iceConnectionState);
+            if (
+              peerConnection.iceConnectionState === "connected" ||
+              peerConnection.iceConnectionState === "completed"
+            ) {
+              document.getElementById("call-status").innerText = "通話中 🟢";
+            } else if (
+              peerConnection.iceConnectionState === "disconnected" ||
+              peerConnection.iceConnectionState === "failed"
+            ) {
+              document.getElementById("call-status").innerText = "連線中斷 🔴";
+            }
+          };
+
+          peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+              log("送出 ICE Candidate");
+              socket.emit("ice-candidate", {
+                to: incomingCallData.socket,
+                candidate: event.candidate,
+              });
+            }
+          };
+          peerConnection.ontrack = (event) => {
+            log("收到遠端串流");
+            const remoteVideo = document.getElementById("remote-video");
+            remoteVideo.srcObject = event.streams[0];
+
+            // 確保音訊播放
+            remoteVideo.muted = false; // 強制開啟聲音
+            remoteVideo.volume = 1.0;
+            remoteVideo.play().catch((e) => {
+              log("播放失敗: " + e.message);
+              alert("瀏覽器阻擋了自動播放，請點擊畫面任意處來開啟聲音！");
+            });
+
+            // 檢查音訊軌道
+            const audioTracks = event.streams[0].getAudioTracks();
+            log(`音訊軌道數量: ${audioTracks.length}`);
+            audioTracks.forEach((track, i) => {
+              log(
+                `音訊軌 ${i}: enabled=${track.enabled}, muted=${track.muted}`
+              );
+              if (track.muted) {
+                log(`警告: 音訊軌 ${i} 初始狀態為 muted，等待 3 秒檢查...`);
+                setTimeout(() => {
+                  if (track.muted) {
+                    alert(
+                      "⚠️ 嚴重警告：您的麥克風持續被靜音！\n\n1. 請檢查麥克風是否有「實體靜音按鈕」。\n2. 請確認 Windows 設定 > 隱私權 > 麥克風存取權限是否開啟。"
+                    );
+                    document.getElementById("call-status").innerText =
+                      "⚠️ 麥克風無訊號";
+                    document.getElementById("call-status").style.color = "red";
+                  }
+                }, 3000);
+              }
+            });
+
+            // 強制更新狀態
+            document.getElementById("call-status").innerText = "通話中 🟢";
+          };
+          localStream
+            .getTracks()
+            .forEach((track) => peerConnection.addTrack(track, localStream));
+
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(incomingCallData.offer)
+          );
+          processCandidateQueue(); // Process queued candidates
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          log("送出 Answer");
+
+          socket.emit("make-answer", {
+            to: incomingCallData.socket,
+            signal: answer,
+          });
+        } catch (err) {
+          console.error("無法取得鏡頭/麥克風", err);
+          log("Error: " + err.message);
+          alert(
+            `無法取得鏡頭/麥克風權限 😭\n錯誤代碼: ${err.name}\n訊息: ${err.message}`
+          );
+          endCall();
+        }
+      }
+
+      function rejectCall() {
+        document.getElementById("incoming-call-modal").style.display = "none";
+        document.getElementById("incoming-call-modal").classList.remove("show");
+        // 可以發送拒絕事件給對方 (目前先省略)
+      }
+
+      // 4. 對方已接聽 (發起者收到 Answer)
+      socket.on("answer-made", async (data) => {
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription(data.answer)
+        );
+        processCandidateQueue(); // Process queued candidates
+        // document.getElementById("call-status").innerText = "通話中";
+      });
+
+      // === Debug Log ===
+      function log(msg) {
+        console.log(msg);
+        const el = document.getElementById("debug-log");
+        if (el) {
+          const div = document.createElement("div");
+          div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+          el.appendChild(div);
+          el.scrollTop = el.scrollHeight;
+        }
+      }
+
+      // 5. 收到 ICE 候選人
+      socket.on("ice-candidate", async (data) => {
+        try {
+          if (peerConnection && peerConnection.remoteDescription) {
+            log("收到 ICE Candidate");
+            await peerConnection.addIceCandidate(
+              new RTCIceCandidate(data.candidate)
+            );
+          } else {
+            log("暫存 ICE Candidate (連線未就緒)");
+            candidateQueue.push(data.candidate);
+          }
+        } catch (e) {
+          // 忽略 OperationError (通常是因為連線協商未完成或單方無視訊)
+          if (e.name !== "OperationError") {
+            console.error("Error adding received ice candidate", e);
+            log("Error adding ICE: " + e.message);
+          }
+        }
+      });
+
+      // Process queued ICE candidates
+      async function processCandidateQueue() {
+        if (candidateQueue.length > 0) {
+          log(`處理暫存的 ${candidateQueue.length} 個 ICE Candidates`);
+          for (const candidate of candidateQueue) {
+            try {
+              await peerConnection.addIceCandidate(
+                new RTCIceCandidate(candidate)
+              );
+            } catch (e) {
+              console.error("Error adding queued ice candidate", e);
+            }
+          }
+          candidateQueue = [];
+        }
+      }
+
+      // 6. 掛斷
+      function endCall() {
+        // 通知對方掛斷
+        socket.emit("call-ended", { to: currentCallPartner });
+
+        if (peerConnection) {
+          peerConnection.close();
+          peerConnection = null;
+        }
+        if (localStream) {
+          localStream.getTracks().forEach((track) => track.stop());
+          localStream = null;
+        }
+        document.getElementById("call-overlay").classList.add("d-none");
+        currentCallPartner = null; // 清除通話對象
+        // 重新整理頁面最簡單，確保狀態清空 (或發送掛斷事件)
+        // location.reload();
+      }
+
+      // 按 Enter 發送
+      document.getElementById("msg-input").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") sendText();
+      });
+
+      // 觸發檔案上傳
+      function triggerUpload() {
+        document.getElementById("file-input").click();
+      }
+
+      // 監聽檔案選擇
+      document
+        .getElementById("file-input")
+        .addEventListener("change", function () {
+          const file = this.files[0];
+          if (!file) return;
+
+          const formData = new FormData();
+          formData.append("file", file);
+
+          // 顯示進度條
+          const pContainer = document.getElementById("progress-container");
+          const pBar = document.getElementById("progress-bar");
+          const pText = document.getElementById("progress-text");
+
+          pContainer.classList.remove("d-none");
+          pBar.style.width = "0%";
+          pText.innerText = "開始上傳...";
+
+          // 改用 XHR 以監聽進度
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "/upload", true);
+
+          // 監聽上傳進度
+          xhr.upload.onprogress = function (e) {
+            if (e.lengthComputable) {
+              const percent = Math.round((e.loaded / e.total) * 100);
+              pBar.style.width = percent + "%";
+              pText.innerText = `上傳中... ${percent}%`;
+            }
+          };
+
+          // 上傳完成
+          xhr.onload = function () {
+            if (xhr.status === 200) {
+              const url = xhr.responseText;
+              // 上傳成功，發送訊息
+              const type = file.type.startsWith("image/") ? "image" : "video";
+              socket.emit("send_msg", {
+                text: url,
+                type: type,
+              });
+              pText.innerText = "上傳完成！ ✅";
+              setTimeout(() => {
+                pContainer.classList.add("d-none");
+              }, 1000);
+            } else {
+              console.error("上傳失敗");
+              pText.innerText = "上傳失敗 ❌";
+              alert("上傳失敗 😭");
+              setTimeout(() => {
+                pContainer.classList.add("d-none");
+              }, 2000);
+            }
+          };
+
+          xhr.onerror = function () {
+            console.error("上傳錯誤");
+            pText.innerText = "網路錯誤 ❌";
+            alert("上傳發生錯誤 😭");
+            setTimeout(() => {
+              pContainer.classList.add("d-none");
+            }, 2000);
+          };
+
+          xhr.send(formData);
+
+          // 清空 input，這樣才能重複選同一個檔案
+          this.value = "";
+        });
+
+      // 註冊 Service Worker (PWA)
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then(() => console.log("Service Worker Registered"))
+          .catch((err) => console.log("Service Worker Failed", err));
+      }
+
+      // === 除錯功能：檢查 HTTPS ===
+      window.addEventListener("load", () => {
+        const isLocalhost =
+          location.hostname === "localhost" ||
+          location.hostname === "127.0.0.1";
+        const isHttps = location.protocol === "https:";
+
+        if (!isLocalhost && !isHttps) {
+          alert(
+            "⚠️ 注意：視訊通話功能必須使用 HTTPS 連線！\n請將網址開頭的 http:// 改為 https://"
+          );
+        }
+      });
+
+      // === Web Push Notification Logic ===
+      const publicVapidKey =
+        "BHUAd0UBrw_gU3Xq7z8xr2IarA3HGq-8yy0rqJw78e7b6inpc3owZSb_Y9C_AieNPMf13fYJCeizUOSw5A5tj4g";
+
+      function urlBase64ToUint8Array(base64String) {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding)
+          .replace(/\-/g, "+")
+          .replace(/_/g, "/");
+
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      async function registerPush() {
+        if ("serviceWorker" in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.ready;
+
+            // 訂閱 Push
+            const subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+            });
+
+            console.log("Push Subscribed:", subscription);
+
+            // 傳送訂閱資訊給 Server
+            await fetch("/subscribe?username=" + myName, {
+              method: "POST",
+              body: JSON.stringify(subscription),
+              headers: {
+                "content-type": "application/json",
+              },
+            });
+            console.log("Push Sent to Server");
+          } catch (err) {
+            console.error("Push Registration Failed", err);
+          }
+        }
+      }
+
+      // === Notification Toggle Logic ===
+      let notificationsEnabled =
+        localStorage.getItem("notificationsEnabled") !== "false"; // 預設開啟
+
+      async function requestNotificationPermission() {
+        if (!("Notification" in window)) {
+          alert("此瀏覽器不支援通知功能 😢");
+          return;
+        }
+
+        // 如果瀏覽器權限還沒允許，先請求權限
+        if (Notification.permission === "default") {
+          try {
+            const permission = await Notification.requestPermission();
+            if (permission === "granted") {
+              notificationsEnabled = true;
+              localStorage.setItem("notificationsEnabled", "true");
+              alert("✅ 通知權限已開啟！\n您將會收到新訊息的通知");
+              updateNotifyBtn();
+              // 如果已登入，註冊 Push
+              if (myName) {
+                registerPush();
+              }
+            } else {
+              alert("❌ 通知權限被拒絕\n您將無法收到新訊息通知");
+              updateNotifyBtn();
+            }
+          } catch (err) {
+            console.error("Notification permission error:", err);
+            alert("通知權限請求失敗：" + err.message);
+          }
+          return;
+        }
+
+        // 如果權限已經允許，切換開關狀態
+        if (Notification.permission === "granted") {
+          notificationsEnabled = !notificationsEnabled;
+          localStorage.setItem(
+            "notificationsEnabled",
+            notificationsEnabled.toString()
+          );
+
+          if (notificationsEnabled) {
+            alert("✅ 通知已開啟\n您將會收到新訊息的通知");
+            // 註冊 Push
+            if (myName) {
+              registerPush();
+            }
+          } else {
+            alert("🔕 通知已關閉\n您將不會收到新訊息通知");
+          }
+
+          updateNotifyBtn();
+        } else if (Notification.permission === "denied") {
+          alert(
+            "❌ 通知權限已被封鎖\n\n請到瀏覽器設定中手動允許通知權限：\n1. 點擊網址列左邊的鎖頭圖示\n2. 將「通知」改為「允許」\n3. 重新整理網頁"
+          );
+        }
+      }
+
+      // 更新通知按鈕狀態
+      function updateNotifyBtn() {
+        const btn = document.getElementById("btn-notify");
+        if (!btn) return;
+
+        if (Notification.permission === "granted" && notificationsEnabled) {
+          btn.style.background = "#28a745"; // 綠色：已開啟
+          btn.style.color = "white";
+          btn.title = "通知已開啟（點擊關閉）";
+        } else if (
+          Notification.permission === "granted" &&
+          !notificationsEnabled
+        ) {
+          btn.style.background = "#6c757d"; // 灰色：已關閉
+          btn.style.color = "white";
+          btn.title = "通知已關閉（點擊開啟）";
+        } else if (Notification.permission === "denied") {
+          btn.style.background = "#dc3545"; // 紅色：被拒絕
+          btn.style.color = "white";
+          btn.title = "通知已拒絕（點擊查看說明）";
+        } else {
+          btn.style.background = "transparent"; // 透明：尚未設定
+          btn.style.color = "white";
+          btn.title = "點擊開啟通知";
+        }
+      }
+
+      // 頁面載入時更新按鈕狀態
+      window.addEventListener("load", () => {
+        updateNotifyBtn();
+      });
+
+      // === PWA Installation Logic ===
+      let deferredPrompt;
+
+      // Detect if user is on mobile
+      const isMobile =
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+
+      // Show install button on mobile by default (since beforeinstallprompt may not fire)
+      if (isMobile) {
+        const installBtn = document.getElementById("install-btn");
+        if (installBtn) {
+          installBtn.classList.remove("d-none");
+        }
+      }
+
+      window.addEventListener("beforeinstallprompt", (e) => {
+        // Prevent the mini-infobar from appearing on mobile
+        e.preventDefault();
+        // Stash the event so it can be triggered later
+        deferredPrompt = e;
+        // Show the install button
+        const installBtn = document.getElementById("install-btn");
+        if (installBtn) {
+          installBtn.classList.remove("d-none");
+        }
+        console.log("PWA install prompt is ready");
+      });
+
+      async function installApp() {
+        if (!deferredPrompt) {
+          // Fallback for browsers that don't support beforeinstallprompt
+          if (isMobile) {
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+              alert(
+                "📲 iOS 安裝方式：\n\n1. 點擊下方的「分享」按鈕 (方框+箭頭)\n2. 選擇「加入主畫面」\n3. 點擊「新增」完成安裝"
+              );
+            } else {
+              alert(
+                "📲 Android 安裝方式：\n\n1. 點擊瀏覽器右上角的「⋮」選單\n2. 選擇「安裝應用程式」或「加到主畫面」\n3. 確認安裝"
+              );
+            }
+          } else {
+            alert("此瀏覽器不支援安裝功能，或 App 已經安裝過了 😊");
+          }
+          return;
+        }
+
+        // Show the install prompt
+        deferredPrompt.prompt();
+
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+
+        if (outcome === "accepted") {
+          console.log("User accepted the install prompt");
+          alert("✅ 安裝成功！App 已新增到您的主畫面");
+        } else {
+          console.log("User dismissed the install prompt");
+        }
+
+        // Clear the deferredPrompt so it can only be used once
+        deferredPrompt = null;
+
+        // Hide the install button
+        const installBtn = document.getElementById("install-btn");
+        if (installBtn) {
+          installBtn.classList.add("d-none");
+        }
+      }
+
+      // === 除錯功能：測試鏡頭 ===
+      async function testCamera() {
+        try {
+          // 改用封裝好的函式
+          const stream = await getLocalStream();
+          alert("✅ 測試成功！\n(測試後會自動關閉)");
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+          alert("❌ 測試失敗: " + e.message);
+        }
+      }
+    </script>
+  </body>
+</html>

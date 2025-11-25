@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>修復頁面</title>
+    <style>
+      body {
+        background-color: #2c3e50;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        font-family: sans-serif;
+      }
+      .loader {
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loader"></div>
+    <h2 id="status">正在修復應用程式...</h2>
+    <p>正在清除舊的快取檔案</p>
+
+    <script>
+      async function fixApp() {
+        const status = document.getElementById("status");
+
+        try {
+          // 1. 註銷所有 Service Workers
+          if ("serviceWorker" in navigator) {
+            const registrations =
+              await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+              await registration.unregister();
+            }
+          }
+
+          // 2. 刪除所有快取
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            for (let key of keys) {
+              await caches.delete(key);
+            }
+          }
+
+          status.innerText = "修復完成！✅";
+
+          // 3. 重新導向回首頁
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 1500);
+        } catch (error) {
+          console.error(error);
+          status.innerText = "修復失敗，請手動清除瀏覽器快取。";
+        }
+      }
+
+      fixApp();
+    </script>
+  </body>
+</html>
