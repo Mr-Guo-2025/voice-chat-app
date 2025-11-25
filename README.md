@@ -1,6 +1,7 @@
 # 語音聊天室系統 (Voice Chat App)
 
 ![Project Banner](public/banner.png)
+_（註：此為 AI 生成之示意圖，實際介面以程式為準）_
 
 這是一個基於 WebRTC 的即時語音通話系統，支援多裝置連線、PWA 安裝、以及即時通知功能。
 
