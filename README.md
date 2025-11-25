@@ -55,9 +55,31 @@ _（註：此為 AI 生成之示意圖，實際介面以程式為準）_
 
 1. **產生新的推播金鑰**：
 
-   - 在終端機輸入：`node generate_keys.js`
-   - 它會印出新的 `Public Key` 和 `Private Key`。
-   - 打開 `server.js`，找到第 250 行左右，把 `YOUR_PUBLIC_KEY` 換成剛剛產生出來的亂碼。
+   - **產生金鑰**：
+     在黑底視窗 (PowerShell) 輸入指令：
+
+     ```bash
+     node generate_keys.js
+     ```
+
+     按 Enter 後，你會看到類似這樣的畫面：
+
+     ```
+     Public Key:  BKv... (一長串亂碼)
+     Private Key: K9r... (另一串亂碼)
+     ```
+
+   - **貼上金鑰**：
+     1. 用記事本或程式編輯器打開 `server.js` 檔案。
+     2. 往下捲動找到大約第 250 行。
+     3. 你會看到：
+        ```javascript
+        const publicVapidKey = "YOUR_PUBLIC_VAPID_KEY_HERE";
+        const privateVapidKey = "YOUR_PRIVATE_VAPID_KEY_HERE";
+        ```
+     4. 把剛剛視窗裡的 `Public Key` 複製，貼到第一行的引號 `""` 裡面。
+     5. 把 `Private Key` 複製，貼到第二行的引號 `""` 裡面。
+     6. 存檔並關閉。
 
 2. **修改登入密碼**：
    - 打開 `server.js`，找到第 60 行左右的 `USERS` 設定。
